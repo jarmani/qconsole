@@ -25,3 +25,5 @@ as:
 
 To adjust the window height, use the `-h` option.  To adjust the speed that the
 console scrolls, use the `-s` option (1 to 10, default of 9).
+To change the key binding use -k <modifier>+<key> or -k <key>. Only one modifier
+is supported and value can be alt, ctrl, shift or super.
