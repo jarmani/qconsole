@@ -60,6 +60,8 @@ struct xinfo {
 	int speed;
 	int width, height;
 	int cur_direction;
+	int modifier;
+	int keysym;
 } main_win;
 
 char *win_name = "qconsole";
@@ -90,7 +92,7 @@ void		usage(void);
 int
 main(int argc, char* argv[])
 {
-	char *display = NULL, *p;
+	char *display = NULL, *key, *mod, *p;
 	int ch;
 
 	memset(&main_win, 0, sizeof(struct xinfo));
@@ -98,7 +100,11 @@ main(int argc, char* argv[])
 	main_win.speed = DEF_SPEED;
 	main_win.cur_direction = DIR_UP;
 
-	while ((ch = getopt(argc, argv, "dh:s:")) != -1)
+	/* Default to ctrl+o */
+	main_win.keysym = XK_o;
+	main_win.modifier = ControlMask;
+
+	while ((ch = getopt(argc, argv, "dh:k:s:")) != -1)
 		switch (ch) {
 		case 'd':
 			debug = 1;
@@ -108,6 +114,38 @@ main(int argc, char* argv[])
 			main_win.height = strtol(optarg, &p, 10);
 			if (*p || main_win.height < 1)
 				errx(1, "illegal height value -- %s", optarg);
+
+			break;
+
+		case 'k':
+			mod = optarg;
+			p = strchr(optarg, '+');
+
+			if (p) {
+				/* We have a <modifier>+<key> */
+				*p = '\0';
+				key = p + 1;
+
+				if (!strcmp(mod, "ctrl"))
+					main_win.modifier = ControlMask;
+				else if (!strcmp(mod, "shift"))
+					main_win.modifier = ShiftMask;
+				else if (!strcmp(mod, "alt"))
+					main_win.modifier = Mod1Mask;
+				else if (!strcmp(mod, "super"))
+					main_win.modifier = Mod4Mask;
+				else
+					errx(1, "Invalid modifier %s", mod);
+
+			} else {
+				key = optarg;
+				main_win.modifier = 0;
+			}
+
+			main_win.keysym = XStringToKeysym(key);
+
+			if (!main_win.keysym)
+				errx(1, "Invalid key %s", key);
 
 			break;
 
@@ -229,10 +267,8 @@ draw_window(const char *display)
 	XSelectInput(main_win.dpy, main_win.win, SubstructureNotifyMask |
 		FocusChangeMask);
 
-	/* bind to control+o */
-	/* TODO: allow this key to be configurable */
-	XGrabKey(main_win.dpy, XKeysymToKeycode(main_win.dpy, XK_o),
-		ControlMask, DefaultRootWindow(main_win.dpy), False,
+	XGrabKey(main_win.dpy, XKeysymToKeycode(main_win.dpy, main_win.keysym),
+		main_win.modifier, DefaultRootWindow(main_win.dpy), False,
 		GrabModeAsync, GrabModeAsync);
 }
 
